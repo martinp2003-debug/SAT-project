@@ -1,0 +1,8 @@
+c Grille Meowdoku générée avec au moins une solution
+GRID 5 5
+ZONES R3 R1 R4 R2 X R5
+R3 R3 R1 R4 R2
+R3 R3 R1 X R2
+R3 R3 X X R4
+R5 R5 X X R4
+R5 R5 R5 R4 R4
