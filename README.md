@@ -1,4 +1,4 @@
-# Meowdoku — Questions 1 à 4
+# Meowdoku — Questions 1 à 5
 
 Ces programmes utilisent uniquement la bibliothèque standard de Python 3.
 
@@ -20,6 +20,12 @@ Ces programmes utilisent uniquement la bibliothèque standard de Python 3.
 - `question4/heuristiques.py` : DPLL avec cinq heuristiques de branchement.
 - `question4/test_heuristiques.py` : validation des heuristiques et valuations.
 - `question4/rapport_q4.md` : justification des choix de la question 4.
+- `question5/instrumentation.py` : DPLL_H instrumenté (compteurs, temps, délai) et variantes statiques.
+- `question5/instances_meowdoku.py` : génération d'instances Meowdoku SAT et UNSAT.
+- `question5/benchmark_q5.py` : campagne de mesures et tableaux de synthèse.
+- `question5/resultats_q5.csv` : mesures brutes de la question 5.
+- `question5/rapport_q5.md` : protocole, résultats et analyse des performances.
+- `grilles/q5/`, `instances/q5/` : grilles et CNF générées pour la question 5.
 - `public-instances/` : tests et instances de performance fournis par les enseignants.
 
 ## Utilisation
@@ -134,3 +140,19 @@ Les choix disponibles sont `h0` (aléatoire), `h1` (première variable libre),
 `h3` (littéral le plus fréquent), `h4` (variable fréquente dans les clauses
 minimales) et `h7` (pondération de Jeroslow–Wang). Les trois derniers sont
 recalculés dynamiquement sur la formule courante.
+
+## Question 5 — Comparaison des heuristiques
+
+```sh
+python3 question5/instances_meowdoku.py
+python3 question5/benchmark_q5.py mesurer --limite 10 --graines-h0 3 > question5/resultats_q5.csv
+python3 question5/benchmark_q5.py resumer question5/resultats_q5.csv
+python3 -m unittest -v question5.test_instrumentation
+```
+
+Les compteurs suivent les lignes de l'algorithme 3 : décisions (ligne 17),
+retours arrière (ligne 21), propagations unitaires (ligne 5) et littéraux purs
+(ligne 11). S'y ajoutent le temps CPU, la part de ce temps passée dans
+l'heuristique, le nombre de nœuds et la profondeur maximale. `h3s` et `h7s` sont
+les variantes statiques de H3 et H7, utilisées pour mesurer l'apport du recalcul
+dynamique. Chaque exécution est interrompue au-delà de `--limite` secondes CPU.
