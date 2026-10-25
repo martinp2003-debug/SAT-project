@@ -38,22 +38,31 @@ question 5, soit 30 SAT et 25 UNSAT. Quatre variantes sont comparées :
 - `optimized-adaptive` : H1 pour les formules dominées par les clauses binaires
   négatives, H4 sinon.
 
-Mesures réalisées le 25 octobre 2026 sous Python 3.11.5, macOS 26.6.2 ARM64.
-Docker était installé mais son daemon n'était pas actif : l'environnement cible
-Python 3.12/Linux du sujet n'a donc pas pu être reproduit localement.
+Deux campagnes ont été réalisées le 25 octobre 2026. La première utilise
+Python 3.11.5 directement sous macOS 26.6.2 ARM64. La seconde utilise l'image
+Docker `python:3.12-slim` en architecture `linux/amd64`, avec les limites du
+sujet : 4 CPU et 8 Gio de mémoire. Le projet y est monté en lecture seule et le
+réseau est désactivé. Cette seconde campagne reproduit donc l'image, la version
+majeure de Python, l'architecture et les limites de ressources de la
+compétition. Le processeur x86-64 reste toutefois émulé sur l'Apple M1 et ne
+reproduit pas les performances de l'Intel Core Ultra 7 155H cible.
 
-## Résultats
+## Résultats sous Docker
 
 | Solveur | Correctes | SAT | UNSAT | Timeouts | Temps des instances correctes (s) |
 |---|---:|---:|---:|---:|---:|
-| DPLL Q2 | 51/55 | 27 | 24 | 4 | 34,251 |
-| Optimisé H1 | 53/55 | 29 | 24 | 2 | **15,755** |
-| Optimisé H4 | **54/55** | **30** | 24 | **1** | 40,906 |
-| Optimisé adaptatif | **54/55** | **30** | 24 | **1** | 39,379 |
+| DPLL Q2 | 51/55 | 27 | 24 | 4 | 65,708 |
+| Optimisé H1 | 53/55 | 29 | 24 | 2 | **46,434** |
+| Optimisé H4 | **54/55** | **30** | 24 | **1** | 105,204 |
+| Optimisé adaptatif | **54/55** | **30** | 24 | **1** | 103,240 |
 
 Sur les 51 instances résolues par les quatre variantes, le temps cumulé passe
-de 34,251 s pour DPLL à 27,854 s pour l'adaptatif. Le coût fixe du lancement de
-Python, environ 0,04 s sur les cas les plus faciles, est inclus.
+de 65,708 s pour DPLL à 78,239 s pour l'adaptatif et 32,799 s pour H1. Ce
+résultat agrégé ne signifie pas que H1 donne le meilleur classement : il ne
+résout que 53 instances, contre 54 pour H4 et l'adaptatif, et le nombre
+d'instances correctes est le premier critère du sujet. Le coût fixe d'environ
+0,33 s observé sur les cas les plus faciles est inclus ; il provient en grande
+partie du lancement d'un processus Python x86-64 sous émulation.
 
 ### Détail par famille
 
@@ -67,19 +76,42 @@ Le DPLL initial dépasse 60 s sur `public-03`, `public-06`, `public-12` et
 sur `public-03`, instance UNSAT. Aucune réponse incorrecte ni aucun modèle
 invalide n'a été observé : toutes les instances non résolues sont des timeouts.
 
-## Analyse du choix adaptatif
+La campagne native macOS aboutit exactement aux mêmes nombres d'instances
+correctes et de timeouts. Ses temps cumulés respectifs sont 34,251 s, 15,755 s,
+40,906 s et 39,379 s. Les deux environnements confirment donc les conclusions
+fonctionnelles et le classement par couverture, mais leurs temps absolus ne
+doivent pas être comparés directement.
+
+## Fonctionnement et analyse du choix adaptatif
+
+Après le prétraitement, le solveur examine une fois la structure de la formule.
+Il la considère de type Meowdoku si elle contient au moins une clause entièrement
+positive et si au moins 70 % de ses clauses non vides sont des clauses binaires
+entièrement négatives. Cette forme est caractéristique de l'encodage : les
+clauses positives imposent la présence d'un chat, tandis que les nombreuses
+clauses `(¬x ∨ ¬y)` interdisent des paires de positions.
+
+Si le test réussit, la stratégie H1 est conservée pendant toute la recherche :
+elle choisit la plus petite variable encore libre et essaie d'abord la valeur
+vraie. Sinon, le solveur conserve H4/MOMS : à chaque décision, il considère les
+clauses non satisfaites, ne garde que les plus courtes, choisit la variable qui
+y apparaît le plus souvent et essaie sa polarité majoritaire. Le terme
+`adaptatif` désigne donc ici une sélection automatique au niveau de l'instance,
+et non un changement entre H1 et H4 pendant l'exploration. H4 reste, elle,
+dynamique puisque ses fréquences sont recalculées sur l'état courant.
 
 Le détecteur sélectionne H1 pour les 25 instances Meowdoku. Ce choix est
-cohérent avec la question 5 et réduit leur temps cumulé de 9,963 s avec DPLL à
-2,118 s. H4 demande 4,187 s sur ce même lot.
+cohérent avec la question 5 et réduit, sous Docker, leur temps cumulé de
+23,273 s avec DPLL à 10,573 s. H4 demande 14,925 s sur ce même lot.
 
 Sur les instances publiques, H4 est nécessaire pour résoudre `public-12` en
-7,9 s, alors que H1 dépasse 60 s. H1 est néanmoins beaucoup plus rapide sur
-quelques instances SAT, par exemple `public-04`. Aucune stratégie ne domine donc
-sur chaque instance. Selon le classement du sujet, H1 seul reste derrière car
-ses 53 instances résolues priment sur son meilleur temps total. H4 et
-l'adaptatif résolvent tous deux 54 instances ; l'adaptatif est retenu, car il
-est plus rapide sur l'ensemble et spécialement adapté aux Meowdoku.
+16,7 s sous Docker, alors que H1 dépasse 60 s. H1 est néanmoins beaucoup plus
+rapide sur quelques instances SAT, notamment `public-04` : 0,68 s contre
+53,67 s pour l'adaptatif. Aucune stratégie ne domine donc sur chaque instance.
+Selon le classement du sujet, H1 seul reste derrière car ses 53 instances
+résolues priment sur son meilleur temps total. H4 et l'adaptatif résolvent tous
+deux 54 instances ; l'adaptatif est retenu car son temps total est plus faible
+sur l'ensemble et qu'il est spécialement adapté aux Meowdoku.
 
 ## Limites
 
@@ -87,10 +119,11 @@ est plus rapide sur l'ensemble et spécialement adapté aux Meowdoku.
   temps restent sensibles au bruit du système.
 - Le DPLL aléatoire n'est mesuré qu'avec la graine 0 afin de rendre la comparaison
   reproductible ; une autre graine peut modifier fortement ses performances.
-- Les temps locaux ne sont pas directement comparables à ceux de la machine de
-  compétition, mais les statuts, modèles et nombres d'instances résolues restent
-  vérifiables.
-- Les résultats bruts sont conservés dans `question6/resultats_q6.csv`.
+- Les temps Docker subissent le coût de l'émulation x86-64 sur Apple M1 et ne
+  sont pas directement comparables à ceux de la machine de compétition. Les
+  statuts, modèles et nombres d'instances résolues restent vérifiables.
+- Les résultats bruts natifs et Docker sont conservés respectivement dans
+  `question6/resultats_q6.csv` et `question6/resultats_q6_docker.csv`.
 
 ## Reproduction
 
@@ -98,4 +131,8 @@ est plus rapide sur l'ensemble et spécialement adapté aux Meowdoku.
 python3 -m unittest discover -v
 python3 question6/benchmark_q6.py mesurer --limite 60 > question6/resultats_q6.csv
 python3 question6/benchmark_q6.py resumer question6/resultats_q6.csv
+docker compose run --rm solver python question6/benchmark_q6.py mesurer \
+  --limite 60 > question6/resultats_q6_docker.csv
+docker compose run --rm solver python question6/benchmark_q6.py resumer \
+  question6/resultats_q6_docker.csv
 ```
