@@ -1,4 +1,4 @@
-# Meowdoku — Questions 1 à 5
+# Meowdoku — Questions 1 à 6
 
 Ces programmes utilisent uniquement la bibliothèque standard de Python 3.
 
@@ -25,6 +25,9 @@ Ces programmes utilisent uniquement la bibliothèque standard de Python 3.
 - `question5/benchmark_q5.py` : campagne de mesures et tableaux de synthèse.
 - `question5/resultats_q5.csv` : mesures brutes de la question 5.
 - `question5/rapport_q5.md` : protocole, résultats et analyse des performances.
+- `sat.py` : interface commune imposée pour les modes `dpll` et `optimized`.
+- `question6/` : DPLL incrémental typé, propagation par littéraux surveillés
+  et sélection adaptative de l'heuristique.
 - `grilles/q5/`, `instances/q5/` : grilles et CNF générées pour la question 5.
 - `public-instances/` : tests et instances de performance fournis par les enseignants.
 
@@ -115,8 +118,8 @@ complète les variables restantes à `False`.
 Le benchmark accepte un fichier DIMACS isolé ou le dossier `public-instances`.
 Dans ce dernier cas, il mesure les 30 fichiers `public-*.cnf` et contrôle les
 statuts SAT/UNSAT avec `expected.json`. Certaines instances peuvent demander
-plusieurs dizaines de secondes, voire davantage, au DPLL de base. Le mode
-`optimized` appartient à la question 6 et n'est pas implémenté ici.
+plusieurs dizaines de secondes, voire davantage, au DPLL de base. Le point
+d'entrée commun et le mode `optimized` sont décrits à la fin de ce document.
 
 ## Question 3 — Solution d'une grille
 
@@ -156,3 +159,25 @@ retours arrière (ligne 21), propagations unitaires (ligne 5) et littéraux purs
 l'heuristique, le nombre de nœuds et la profondeur maximale. `h3s` et `h7s` sont
 les variantes statiques de H3 et H7, utilisées pour mesurer l'apport du recalcul
 dynamique. Chaque exécution est interrompue au-delà de `--limite` secondes CPU.
+
+## Question 6 — Solveur optimisé
+
+```sh
+python3 sat.py instances/grille.cnf
+python3 sat.py instances/grille.cnf --mode dpll
+python3 sat.py instances/grille.cnf --mode optimized --output-model
+python3 -m unittest -v question6.test_optimized
+python3 question6/benchmark_q6.py mesurer --filtre public-01
+python3 question6/benchmark_q6.py resumer question6/resultats_q6.csv
+```
+
+Le mode `dpll` appelle sans modification le solveur de la question 2. Le mode
+`optimized`, utilisé par défaut, conserve une formule immuable et effectue la
+propagation et les retours arrière avec des littéraux surveillés et un trail.
+Le trail est la pile chronologique des affectations effectuées, décisions comme
+propagations ; revenir à un niveau précédent consiste à dépiler ces affectations
+et à libérer les variables correspondantes, sans recopier la formule.
+Il sélectionne H1 sur les formules dominées par les exclusions binaires
+négatives de Meowdoku, et H4/MOMS dans le cas général. L'organisation interne
+est détaillée dans `question6/README.md` et les résultats dans
+`question6/rapport_q6.md`.
