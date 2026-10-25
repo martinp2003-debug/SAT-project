@@ -2,6 +2,7 @@
 
 import argparse
 from pathlib import Path
+from typing import cast
 
 from question2.sat import (
     Valuation,
@@ -10,6 +11,7 @@ from question2.sat import (
     verifier_valuation,
 )
 from question6.solver import dpll_optimized
+from question6.structures import StrategieBranchement
 
 
 def _valuation_complete(nombre_variables: int, valuation: Valuation) -> Valuation:
@@ -47,6 +49,12 @@ def main() -> None:
     )
     parser.add_argument("--output-model", action="store_true")
     parser.add_argument("--seed", type=int, help="Graine du mode dpll")
+    parser.add_argument(
+        "--strategie",
+        choices=("auto", "h1", "h4"),
+        default="auto",
+        help="Stratégie du mode optimized (option de développement)",
+    )
     args = parser.parse_args()
 
     try:
@@ -54,7 +62,14 @@ def main() -> None:
         if args.mode == "dpll":
             satisfiable, valuation = dpll_valuation(formule, args.seed)
         else:
-            satisfiable, valuation = dpll_optimized(formule, nombre_variables)
+            strategie = (
+                None
+                if args.strategie == "auto"
+                else cast(StrategieBranchement, args.strategie)
+            )
+            satisfiable, valuation = dpll_optimized(
+                formule, nombre_variables, strategie
+            )
         if satisfiable:
             if valuation is None:
                 raise RuntimeError("Le solveur SAT n'a pas produit de valuation.")

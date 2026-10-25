@@ -39,9 +39,11 @@ def _chercher(etat: EtatSolveur, strategie: StrategieBranchement) -> bool:
 
 
 def dpll_optimized(
-    formule: Sequence[Clause], nombre_variables: int
+    formule: Sequence[Clause],
+    nombre_variables: int,
+    strategie: StrategieBranchement | None = None,
 ) -> ResultatDPLL:
-    """Résout une CNF sans recopier la formule à chaque affectation."""
+    """Résout une CNF sans la recopier, avec une stratégie imposée ou adaptée."""
     sys.setrecursionlimit(
         max(sys.getrecursionlimit(), 2 * nombre_variables + 100)
     )
@@ -49,7 +51,7 @@ def dpll_optimized(
     etat = initialiser_etat(probleme)
     if not propager(etat):
         return False, None
-    strategie = choisir_strategie(probleme)
-    if not _chercher(etat, strategie):
+    strategie_effective = strategie or choisir_strategie(probleme)
+    if not _chercher(etat, strategie_effective):
         return False, None
     return True, _construire_valuation(etat)

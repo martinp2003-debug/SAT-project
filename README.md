@@ -167,7 +167,8 @@ python3 sat.py instances/grille.cnf
 python3 sat.py instances/grille.cnf --mode dpll
 python3 sat.py instances/grille.cnf --mode optimized --output-model
 python3 -m unittest -v question6.test_optimized
-python3 question6/benchmark_q6.py --filtre public-01
+python3 question6/benchmark_q6.py mesurer --filtre public-01
+python3 question6/benchmark_q6.py resumer question6/resultats_q6.csv
 ```
 
 Le mode `dpll` appelle sans modification le solveur de la question 2. Le mode
@@ -178,4 +179,5 @@ propagations ; revenir à un niveau précédent consiste à dépiler ces affecta
 et à libérer les variables correspondantes, sans recopier la formule.
 Il sélectionne H1 sur les formules dominées par les exclusions binaires
 négatives de Meowdoku, et H4/MOMS dans le cas général. L'organisation interne
-est détaillée dans `question6/README.md`.
+est détaillée dans `question6/README.md` et les résultats dans
+`question6/rapport_q6.md`.
