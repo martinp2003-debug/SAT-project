@@ -12,24 +12,30 @@ expliquer brièvement l'architecture, le flux de données et le compromis retenu
 Préférer une implémentation plus petite, testée et comprise à une couverture
 fragile de tout le langage.
 
-L'énoncé de référence de la partie II est `projet-part-2.pdf`. En cas
+L'énoncé de référence de la partie II est `partie_2/projet-part-2.pdf`. En cas
 d'ambiguïté, l'énoncé prime sur ce fichier, puis les décisions explicitement
 prises avec l'utilisateur priment sur les recommandations générales.
 
 ## État initial du dépôt
 
-- `question1/` à `question5/` : travail de la partie I.
-- `question2/sat.py` : lecture DIMACS, DPLL et DPLL avec valuation à réutiliser.
-- `question4/heuristiques.py` : DPLL avec heuristiques de branchement.
-- `question5/instrumentation.py` : solveur instrumenté pour les expériences.
-- `proplog/` : code de départ de la partie II, limité au fragment propositionnel.
-- `proplog/syntax.py` : grammaire Lark LALR, AST et pretty-printer actuels.
-- `proplog/csp.py` : interface en ligne de commande actuelle.
-- `proplog/tests/` : tests du fragment propositionnel.
-- `exemples/` : quatre modèles complets servant de tests d'acceptation.
-- `grilles/`, `instances/`, `public-instances/` : données de la partie I.
+- `partie_1/question1/` à `partie_1/question6/` : travail de la partie I.
+- `partie_1/question2/sat.py` : lecture DIMACS, DPLL et DPLL avec valuation à
+  réutiliser.
+- `partie_1/question4/heuristiques.py` : DPLL avec heuristiques de branchement.
+- `partie_1/question5/instrumentation.py` : solveur instrumenté pour les
+  expériences.
+- `partie_1/question6/` : solveur DPLL incrémental avec littéraux surveillés,
+  tests, benchmarks et rapport.
+- `partie_1/sat.py` : interface commune des modes `dpll` et `optimized`.
+- `partie_2/` : projet `proplog`, limité initialement au fragment propositionnel.
+- `partie_2/syntax.py` : grammaire Lark LALR, AST et pretty-printer actuels.
+- `partie_2/csp.py` : interface en ligne de commande actuelle.
+- `partie_2/tests/` : tests du fragment propositionnel.
+- `partie_2/exemples/` : quatre modèles complets servant de tests d'acceptation.
+- `partie_1/grilles/`, `partie_1/instances/` et
+  `partie_1/public-instances/` : données de la partie I.
 
-Ne pas réécrire le solveur SAT dans `proplog`. La partie II doit appeler le
+Ne pas réécrire le solveur SAT dans `partie_2`. La partie II doit appeler le
 solveur existant derrière une frontière claire, afin que compilation et
 résolution restent testables séparément.
 
@@ -79,7 +85,7 @@ sans besoin démontré.
 - Les mots réservés de l'énoncé ne peuvent pas devenir des identifiants.
 - Les comparaisons ne s'enchaînent pas : `a = b = c` est invalide.
 - Une tranche avec `*` n'est admise qu'en argument d'une contrainte globale.
-- Les quatre fichiers de `exemples/` doivent finir par être acceptés.
+- Les quatre fichiers de `partie_2/exemples/` doivent finir par être acceptés.
 
 ### Noms, types et domaines
 
@@ -161,24 +167,27 @@ Tests d'acceptation finaux :
 
 | Modèle | Résultat attendu |
 |---|---|
-| `exemples/pigeonhole.csp` | UNSAT |
-| `exemples/queens.csp` | SAT |
-| `exemples/coloring.csp` | SAT |
-| `exemples/sudoku.csp` | SAT |
+| `partie_2/exemples/pigeonhole.csp` | UNSAT |
+| `partie_2/exemples/queens.csp` | SAT |
+| `partie_2/exemples/coloring.csp` | SAT |
+| `partie_2/exemples/sudoku.csp` | SAT |
 
 Pour un résultat SAT, vérifier aussi la solution métier ; le seul statut SAT ne
 suffit pas. Pour les transformations délicates, ajouter de petits tests
 exhaustifs avant de lancer les gros exemples.
 
-Commandes de référence actuelles :
+Le dépôt utilise un workspace `uv`, un lockfile et un `.venv` uniques à la
+racine. Commandes de référence, à lancer depuis cette racine :
 
 ```sh
-# Partie I, depuis la racine
-python3 -m unittest -v
-
-# Fragment propositionnel initial, depuis proplog/
+# Installation de l'environnement partagé
 uv sync
-uv run python -m tests.test_syntax
+
+# Partie I
+uv --directory partie_1 run python -m unittest -v
+
+# Fragment propositionnel initial de la partie II
+uv --directory partie_2 run python -m tests.test_syntax
 ```
 
 Adapter ces commandes si l'organisation du paquet change, puis mettre à jour

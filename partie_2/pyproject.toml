@@ -1,7 +1,7 @@
 [project]
 name = "proplog"
 version = "0.1.0"
-description = "Add your description here"
+description = "Compilateur d'un langage de contraintes vers SAT"
 readme = "README.md"
 authors = [
     { name = "martinp2003-debug", email = "martin.potier@student-cs.fr" }

@@ -1,0 +1,16 @@
+services:
+  solver:
+    image: python:3.12-slim
+    platform: linux/amd64
+    working_dir: /app
+
+    volumes:
+      - .:/app:ro
+
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+
+    network_mode: none
+    mem_limit: 8g
+    cpus: 4.0
