@@ -20,13 +20,16 @@ texte .csp
 
 ## État actuel
 
-Le code de départ traite uniquement le fragment propositionnel : variables
-booléennes et connecteurs `not`, `and`, `or` et `->`.
+La chaîne du fragment propositionnel est complète : variables booléennes et
+connecteurs `not`, `and`, `or` et `->` sont validés, compilés en FNC par une
+transformation de Tseitin, sérialisés en DIMACS et résolus par le DPLL de la
+partie I.
 
 - `syntax.py` contient la grammaire Lark LALR, les classes de l'AST, le parser
   et le pretty-printer.
-- `csp.py` fournit la ligne de commande qui analyse un modèle et affiche son
-  AST.
+- `compiler.py` valide les noms et réalise l'encodage de Tseitin.
+- `dimacs.py` sérialise la FNC en conservant la correspondance des noms.
+- `csp.py` orchestre la compilation, l'écriture DIMACS et la résolution.
 - `tests/test_syntax.py` teste les priorités, associativités, erreurs de syntaxe
   et exemples du fragment.
 - `examples/` contient les petits exemples livrés avec le squelette.
@@ -35,8 +38,9 @@ booléennes et connecteurs `not`, `and`, `or` et `->`.
 - `src/proplog/` est le paquet déclaré par le projet `uv` et sera développé au
   fil de la partie II.
 
-Les quatre modèles complets ne sont pas encore acceptés : étendre le langage et
-fermer la chaîne jusqu'au solveur constitue précisément le travail demandé.
+Les quatre modèles complets ne sont pas encore acceptés : ils nécessitent les
+constantes, domaines finis, tableaux, boucles et contraintes globales des
+questions suivantes.
 
 ## Environnement et commandes
 
@@ -46,12 +50,21 @@ Le lockfile et le `.venv` sont partagés à la racine du dépôt. Depuis la raci
 ```sh
 uv sync
 uv --directory partie_2 run python -m tests.test_syntax
+uv --directory partie_2 run python -m unittest -v
 uv --directory partie_2 run python csp.py examples/subject.csp
+uv --directory partie_2 run python csp.py examples/subject.csp --solve
 ```
 
-La dernière commande doit afficher un AST commençant par `Program`. Le fichier
-`examples/syntax-error.csp` doit au contraire produire une erreur syntaxique
-avec sa position.
+La première commande `csp.py` affiche une FNC DIMACS. Avec `--solve`, le statut
+SAT puis une valeur pour chaque variable du modèle sont affichés. Le fichier
+`examples/syntax-error.csp` produit une erreur syntaxique avec sa position.
+
+Une sortie peut aussi être écrite dans un fichier, avec ou sans résolution :
+
+```sh
+uv --directory partie_2 run python csp.py examples/subject.csp --dimacs subject.cnf
+uv --directory partie_2 run python csp.py examples/subject.csp --dimacs subject.cnf --solve
+```
 
 ## Fragment propositionnel
 
@@ -71,6 +84,5 @@ Les connecteurs sont, du plus prioritaire au moins prioritaire, `not`, `and`,
 `or`, puis `->`. `and` et `or` sont associatifs à gauche ; `->` est associatif à
 droite. Les mots-clés sont réservés.
 
-Le parser ne vérifie pas encore la déclaration des noms : par exemple,
-`constraint w;` est syntaxiquement valide. Cette vérification appartient à la
-première étape de l'analyse sémantique.
+La compilation rejette les déclarations doubles et toute référence à une
+variable non déclarée avec un diagnostic contrôlé.
