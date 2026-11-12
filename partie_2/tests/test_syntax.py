@@ -55,14 +55,14 @@ def test_associativity():
 def test_syntax_errors():
     # each model, with the position of the error
     cases = [
-        ("var x : int;",                        (1, 9)),    # bool is the only domain
+        ("var x : int..;",                      (1, 14)),   # missing upper bound
         ("var x : bool",                        (1, 9)),    # missing ";": Lark gives the last token
         ("var x : bool; constraint x or;",      (1, 30)),
         ("constraint (x and y;",                (1, 20)),
         ("constraint x y;",                     (1, 14)),
         ("var and : bool;",                     (1, 5)),    # a keyword is not a name
-        ("constraint x = y;",                   (1, 14)),   # not in the fragment
-        ("constraint x <-> y;",                 (1, 14)),   # no <-> in the language
+        ("constraint a = b = c;",               (1, 18)),   # comparisons do not chain
+        ("constraint x <-> y;",                 (1, 15)),   # no <->: x < then "->"
         ("var x : bool;\nconstraint x\nvar y : bool;", (3, 1)),
     ]
     for text, (line, column) in cases:

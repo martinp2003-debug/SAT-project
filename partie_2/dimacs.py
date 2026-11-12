@@ -1,11 +1,13 @@
-"""DIMACS serialization for compiled propositional models."""
+"""DIMACS serialization of a compiled model.
+
+The compilation is any object with variable_count, clauses and id_to_name
+(the names of the named SAT variables, written as "c var <id> <name>").
+"""
 
 from pathlib import Path
 
-from compiler import CompilationResult
 
-
-def to_dimacs(compilation: CompilationResult) -> str:
+def to_dimacs(compilation) -> str:
     """Serialize a compilation result, including source-variable comments."""
     lines = [
         f"c var {identifier} {compilation.id_to_name[identifier]}"
@@ -20,6 +22,6 @@ def to_dimacs(compilation: CompilationResult) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_dimacs(path: str | Path, compilation: CompilationResult) -> None:
+def write_dimacs(path: str | Path, compilation) -> None:
     """Write ``compilation`` to ``path`` without creating missing parents."""
     Path(path).write_text(to_dimacs(compilation), encoding="utf-8")

@@ -2,11 +2,19 @@
 
 from dataclasses import dataclass
 
-from syntax import And, Constraint, Implies, Not, Or, Program, Var, VarDecl
-
-
-class CompilationError(ValueError):
-    """An expected error in a source model."""
+from diagnostics import CompilationError
+from syntax import (
+    And,
+    Constraint,
+    EnumDomain,
+    Implies,
+    Not,
+    Or,
+    Program,
+    Var,
+    VarDecl,
+    position,
+)
 
 
 @dataclass
@@ -37,7 +45,7 @@ class _TseitinEncoder:
                 return self.name_to_id[expression.name]
             except KeyError as error:
                 raise CompilationError(
-                    f"variable non déclarée : {expression.name}"
+                    f"{position(expression)}variable non déclarée : {expression.name}"
                 ) from error
 
         if isinstance(expression, Not):
@@ -73,7 +81,10 @@ class _TseitinEncoder:
             )
             return result
 
-        raise TypeError(f"expression propositionnelle inattendue : {expression!r}")
+        raise CompilationError(
+            f"{position(expression)}construction non encore prise en charge "
+            f"par la compilation : {type(expression).__name__}"
+        )
 
 
 def compile_program(program: Program) -> CompilationResult:
@@ -81,8 +92,15 @@ def compile_program(program: Program) -> CompilationResult:
     name_to_id: dict[str, int] = {}
     for statement in program.statements:
         if isinstance(statement, VarDecl):
+            if statement.domain != EnumDomain("bool"):
+                raise CompilationError(
+                    f"{position(statement)}domaine non encore pris en charge "
+                    f"par la compilation : {statement.name}"
+                )
             if statement.name in name_to_id:
-                raise CompilationError(f"déclaration en double : {statement.name}")
+                raise CompilationError(
+                    f"{position(statement)}déclaration en double : {statement.name}"
+                )
             name_to_id[statement.name] = len(name_to_id) + 1
 
     encoder = _TseitinEncoder(name_to_id)
@@ -91,7 +109,10 @@ def compile_program(program: Program) -> CompilationResult:
             root = encoder.encode(statement.expr)
             encoder.clauses.append([root])
         elif not isinstance(statement, VarDecl):
-            raise TypeError(f"instruction inattendue : {statement!r}")
+            raise CompilationError(
+                f"{position(statement)}instruction non encore prise en charge "
+                f"par la compilation : {type(statement).__name__}"
+            )
 
     id_to_name = {identifier: name for name, identifier in name_to_id.items()}
     return CompilationResult(

@@ -222,7 +222,9 @@ class TestsChaineComplete(unittest.TestCase):
         result = self.run_cli("examples/subject.csp")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("c var 1 x\n", result.stdout)
-        self.assertIn("p cnf 6 12\n", result.stdout)
+        # La CLI utilise l'encodage de la question 4 : ces trois contraintes
+        # sont déjà des clauses, aucune variable auxiliaire n'est créée.
+        self.assertIn("p cnf 3 4\n", result.stdout)
         self.assertNotIn("Program", result.stdout)
 
     def test_un_modele_contradictoire_est_insatisfiable(self):
@@ -244,7 +246,7 @@ class TestsChaineComplete(unittest.TestCase):
             )
             variable_count, clauses = lire_dimacs(output)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertGreater(variable_count, 3)
+        self.assertEqual(variable_count, 3)
         self.assertTrue(clauses)
 
     def test_les_erreurs_attendues_ne_produisent_pas_de_traceback(self):
@@ -261,8 +263,8 @@ class TestsChaineComplete(unittest.TestCase):
             cases.extend(
                 [
                     (str(duplicate), "déclaration en double : x"),
-                    (str(unknown), "variable non déclarée : x"),
-                    (str(syntax_error), "line 1, column"),
+                    (str(unknown), "nom non déclaré : x"),
+                    (str(syntax_error), "ligne 1, colonne 16 : « ; » inattendu"),
                 ]
             )
             for model, message in cases:
