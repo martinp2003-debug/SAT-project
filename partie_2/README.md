@@ -144,9 +144,44 @@ Sinz réduit le nombre de clauses dès que les groupes `atMostOne` sont grands
 (Sudoku : groupes de 9), au prix de nombreuses variables auxiliaires ; sur les
 petits groupes (3 couleurs, 3 trous), il en ajoute.
 
-La CLI résout la FNC avec le solveur optimisé de la partie I
-(`question6.solver.dpll_optimized`) et affiche une ligne `nom = valeur` par
-case, par exemple `grid[1][2] = 3` ou `color[1] = Red`.
+**Question 5.** La jonction avec la partie I est complète. `dimacs.py` numérote
+les variables propositionnelles et conserve leur nom dans des commentaires
+`c var`, puis `csp.py` orchestre toute la chaîne :
+
+```text
+modèle CSP → FNC/DIMACS → DPLL de la partie I → valeurs du modèle CSP
+```
+
+- sans `--solve`, la CLI affiche la FNC ou l'écrit avec `--dimacs` ;
+- avec `--solve`, elle appelle le solveur optimisé de la partie I
+  (`question6.solver.dpll_optimized`), vérifie que sa valuation satisfait la
+  FNC, puis décode uniquement les variables du modèle, jamais les auxiliaires ;
+- les statuts attendus sont vérifiés sur les quatre exemples : pigeons UNSAT,
+  reines SAT, coloration SAT et Sudoku SAT, avec les deux encodages
+  `pairwise` et `sinz` ;
+- pour les cas SAT, des oracles métier indépendants contrôlent les huit reines,
+  la coloration du graphe de Petersen et toutes les règles du Sudoku.
+
+La sortie contient `s SATISFIABLE` ou `s UNSATISFIABLE`, puis, dans le cas SAT,
+une ligne `nom = valeur` par case, par exemple `grid[1][2] = 3` ou
+`color[1] = Red`.
+
+**Question 6 — en cours.** La question 6.1 est terminée. Le lecteur historique
+de la partie I expose maintenant une `DescriptionGrille` contenant `N`, `M`,
+l'ordre déclaré des zones et la matrice, tout en conservant l'ancienne fonction
+`lire_grille`. `meowdoku.py` transforme cette description en préambule CSP :
+
+```text
+GRID/ZONES → const N, M, K → enum Zone → const region[N][M]
+```
+
+Le convertisseur conserve l'ordre de `ZONES`, refuse les noms qui ne peuvent
+pas devenir des identifiants CSP et ne produit que les données propres à la
+grille : les règles des deux modèles seront ajoutées ensuite. La grille 6 × 6 du
+sujet est testée exactement ; la sortie est aussi relue par le parseur et
+l'analyse sémantique. Les questions 6.2 à 6.6 (deux modèles complets,
+vérificateur indépendant, mesures, contrainte redondante, généralisation et
+conclusion expérimentale) ne sont pas encore implémentées.
 
 - `syntax.py` contient la grammaire, les classes de l'AST, le parser,
   `pretty` (affichage de l'arbre) et `to_source` (réécriture de l'arbre dans le
@@ -181,6 +216,10 @@ case, par exemple `grid[1][2] = 3` ou `color[1] = Red`.
   de la coloration du graphe de Petersen et du Sudoku avec des oracles métier
   indépendants du compilateur.
 - `tests/test_compiler.py` teste la chaîne de la question 1 et la CLI.
+- `meowdoku.py` convertit une grille `GRID/ZONES` de la partie I en
+  déclarations CSP (`N`, `M`, `K`, `Zone` et `region`) pour la question 6.1.
+- `tests/test_meowdoku.py` vérifie la conversion, les diagnostics, la CLI et
+  l'acceptation du fichier produit par le compilateur CSP.
 - `examples/` contient les petits exemples livrés avec le squelette.
 - `exemples/` contient les quatre modèles complets du sujet : pigeons, reines,
   coloration du graphe de Petersen et Sudoku.
@@ -202,6 +241,8 @@ uv --directory partie_2 run python csp.py exemples/queens.csp --ast
 uv --directory partie_2 run python csp.py exemples/queens.csp --expand
 uv --directory partie_2 run python csp.py exemples/sudoku.csp --solve
 uv --directory partie_2 run python csp.py exemples/sudoku.csp --solve --amo sinz
+uv --directory partie_2 run python meowdoku.py \
+  ../partie_1/grilles/grille.txt meowdoku-data.csp
 ```
 
 La première commande `csp.py` affiche une FNC DIMACS. `--ast` affiche l'arbre
@@ -209,6 +250,11 @@ de syntaxe du modèle, sans le compiler. `--expand` affiche les contraintes
 après déroulage et simplification, une par ligne. Avec `--solve`, le statut
 SAT puis une valeur pour chaque variable du modèle sont affichés. Le fichier
 `examples/syntax-error.csp` produit une erreur syntaxique expliquée, avec sa position.
+
+La dernière commande ne génère que les données propres à la grille. Le fichier
+`meowdoku-data.csp` peut ensuite être complété avec les règles de l'un des deux
+modèles Meowdoku. L'ordre de la ligne `ZONES` devient l'ordre de l'énumération
+`Zone` ; les noms incompatibles avec le langage CSP sont rejetés sans renommage.
 
 Une sortie peut aussi être écrite dans un fichier, avec ou sans résolution :
 

@@ -2,6 +2,7 @@
 
 import argparse
 from collections.abc import Sequence
+from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 from typing import TypeAlias
@@ -12,14 +13,24 @@ Clause: TypeAlias = list[int]
 FormuleCNF: TypeAlias = list[Clause]
 
 
-def lire_grille(chemin: str | Path) -> Grille:
-    """Lit et valide un fichier de grille.
+@dataclass(frozen=True)
+class DescriptionGrille:
+    """Données ordonnées d'un fichier de grille Meowdoku."""
+
+    n: int
+    m: int
+    zones: tuple[str, ...]
+    grille: tuple[tuple[str, ...], ...]
+
+
+def lire_description_grille(chemin: str | Path) -> DescriptionGrille:
+    """Lit et valide toutes les données d'un fichier de grille.
 
     Args:
         chemin: Chemin du fichier texte au format GRID/ZONES.
 
     Returns:
-        La grille des noms de régions, sous forme d'une liste de lignes.
+        Les dimensions, les régions dans l'ordre de ``ZONES`` et la grille.
 
     Raises:
         OSError: Si le fichier ne peut pas être lu.
@@ -48,7 +59,18 @@ def lire_grille(chemin: str | Path) -> Grille:
     presentes = {zone for ligne in grille for zone in ligne}
     if presentes != set(zones):
         raise ValueError("Chaque région déclarée doit apparaître, sans région inconnue.")
-    return grille
+    return DescriptionGrille(
+        n=n,
+        m=m,
+        zones=tuple(zones),
+        grille=tuple(tuple(ligne) for ligne in grille),
+    )
+
+
+def lire_grille(chemin: str | Path) -> Grille:
+    """Lit une grille en conservant l'interface historique de la partie I."""
+    description = lire_description_grille(chemin)
+    return [list(ligne) for ligne in description.grille]
 
 
 def variable(i: int, j: int, m: int) -> int:
