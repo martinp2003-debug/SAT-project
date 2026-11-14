@@ -176,7 +176,10 @@ case, par exemple `grid[1][2] = 3` ou `color[1] = Red`.
   formules aléatoires), les clauses exactes des domaines et comparaisons, Sinz,
   et vérifie, pour chaque valeur possible des variables de petits modèles (un
   par opérateur de comparaison, plus des globales sous négation), que la FNC
-  est satisfiable exactement quand le modèle source est vrai.
+  est satisfiable exactement quand le modèle source est vrai. Sur les exemples
+  complets, il contrôle aussi directement les solutions décodées des reines,
+  de la coloration du graphe de Petersen et du Sudoku avec des oracles métier
+  indépendants du compilateur.
 - `tests/test_compiler.py` teste la chaîne de la question 1 et la CLI.
 - `examples/` contient les petits exemples livrés avec le squelette.
 - `exemples/` contient les quatre modèles complets du sujet : pigeons, reines,
