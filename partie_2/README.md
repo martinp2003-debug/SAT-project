@@ -166,7 +166,7 @@ La sortie contient `s SATISFIABLE` ou `s UNSATISFIABLE`, puis, dans le cas SAT,
 une ligne `nom = valeur` par case, par exemple `grid[1][2] = 3` ou
 `color[1] = Red`.
 
-**Question 6 — en cours.** Les questions 6.1 et 6.2 sont terminées. Le lecteur historique
+**Question 6 — en cours.** Les questions 6.1 à 6.3 sont terminées. Le lecteur historique
 de la partie I expose maintenant une `DescriptionGrille` contenant `N`, `M`,
 l'ordre déclaré des zones et la matrice, tout en conservant l'ancienne fonction
 `lire_grille`. `meowdoku.py` transforme cette description en préambule CSP :
@@ -179,7 +179,7 @@ Le convertisseur conserve l'ordre de `ZONES`, refuse les noms qui ne peuvent
 pas devenir des identifiants CSP et produit soit ces seules données, soit l'un
 des deux modèles complets de la question 6.2. Les solutions des deux modèles
 sont ramenées au même format puis contrôlées par le vérificateur indépendant
-de la partie I. Les questions 6.3 à 6.6 (mesures, contrainte redondante,
+de la partie I. Les questions 6.4 à 6.6 (contrainte redondante,
 généralisation et conclusion expérimentale) ne sont pas encore implémentées.
 
 - `syntax.py` contient la grammaire, les classes de l'AST, le parser,
@@ -222,6 +222,14 @@ généralisation et conclusion expérimentale) ne sont pas encore implémentées
   l'oracle métier de la partie I.
 - `tests/test_meowdoku.py` vérifie conversion, modèles, diagnostics, deux
   grilles SAT et les deux CLI.
+- `question6.3/benchmark_q63.py` compare les deux modèles à compilateur, encodage et
+  heuristique DPLL constants. Il mesure séparément compilation, structure de
+  la FNC et recherche, vérifie chaque solution SAT avec l'oracle métier, puis
+  produit un CSV brut et un rapport Markdown.
+- `question6.3/resultats_q63.csv` et `question6.3/rapport_q63.md` contiennent
+  la campagne de référence sur les tailles 6 à 14 et son interprétation.
+- `tests/test_benchmark_q63.py` contrôle les profils de clauses, la synthèse et
+  une exécution réelle des deux modèles sur une grille 6 x 6.
 - `examples/` contient les petits exemples livrés avec le squelette.
 - `exemples/` contient les quatre modèles complets du sujet : pigeons, reines,
   coloration du graphe de Petersen et Sudoku.
@@ -283,6 +291,28 @@ uv --directory partie_2 run python solve_meowdoku.py \
 uv --directory partie_2 run python solve_meowdoku.py \
   ../partie_1/grilles/grille.txt --model cells
 ```
+
+La comparaison de la question 6.3 utilise par défaut les deux grilles SAT de
+chaque taille 6, 8, 10, 12 et 14, l'encodage `pairwise`, l'heuristique
+déterministe `h1`, trois mesures de compilation et trois résolutions. Chaque
+résolution est limitée à 30 secondes CPU ; les interruptions restent dans le
+CSV et ne sont pas silencieusement exclues du taux de résolution.
+
+```sh
+uv --directory partie_2 run python question6.3/benchmark_q63.py mesurer
+uv --directory partie_2 run python question6.3/benchmark_q63.py resumer \
+  question6.3/resultats_q63.csv
+```
+
+Le rapport doit être interprété à partir de la FNC effectivement produite :
+les deux sources décrivent les mêmes solutions, mais pas le même graphe de
+contraintes SAT. Le modèle `positions` introduit deux variables de domaine par
+région et ses contraintes de voisinage croissent jusqu'en ordre `N^4`. Le
+modèle `cells` utilise directement `N^2` booléens ; pour des régions de taille
+équilibrée, ses clauses croissent plutôt en ordre `N^3`. La taille de la FNC
+n'explique cependant pas seule le temps : la proportion de clauses binaires,
+les propagations unitaires, les décisions et les retours arrière déterminent
+aussi l'arbre exploré par DPLL.
 
 Une sortie peut aussi être écrite dans un fichier, avec ou sans résolution :
 
