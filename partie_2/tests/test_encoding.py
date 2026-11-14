@@ -8,7 +8,9 @@
    d'un petit modèle, la FNC (avec ces valeurs imposées) est satisfiable si et
    seulement si le modèle source est vrai, avec les deux encodages de
    atMostOne ;
-5. les quatre modèles du sujet ont le statut attendu.
+5. les quatre modèles du sujet ont le statut attendu et leurs modèles SAT
+   sont décodés ; les solutions des reines, de la coloration et du Sudoku
+   sont en outre vérifiées selon leurs règles métier.
 """
 
 from itertools import combinations, product
@@ -266,6 +268,67 @@ class TestsModelesDuSujet(unittest.TestCase):
     EXPECTED = {"pigeonhole.csp": False, "queens.csp": True,
                 "coloring.csp": True, "sudoku.csp": True}
 
+    PETERSEN_EDGES = (
+        (1, 2), (2, 3), (3, 4), (4, 5), (5, 1),
+        (6, 8), (8, 10), (10, 7), (7, 9), (9, 6),
+        (1, 6), (2, 7), (3, 8), (4, 9), (5, 10),
+    )
+
+    SUDOKU_GIVENS = (
+        (5, 3, 0, 0, 7, 0, 0, 0, 0),
+        (6, 0, 0, 1, 9, 5, 0, 0, 0),
+        (0, 9, 8, 0, 0, 0, 0, 6, 0),
+        (8, 0, 0, 0, 6, 0, 0, 0, 3),
+        (4, 0, 0, 8, 0, 3, 0, 0, 1),
+        (7, 0, 0, 0, 2, 0, 0, 0, 6),
+        (0, 6, 0, 0, 0, 0, 2, 8, 0),
+        (0, 0, 0, 4, 1, 9, 0, 0, 5),
+        (0, 0, 0, 0, 8, 0, 0, 7, 9),
+    )
+
+    def assert_coloring_solution(self, values):
+        colors = {
+            cell.indices[0]: value.name
+            for cell, value in values.items()
+            if cell.name == "color"
+        }
+        self.assertEqual(set(colors), set(range(1, 11)))
+        self.assertLessEqual(set(colors.values()), {"Red", "Green", "Blue"})
+        for left, right in self.PETERSEN_EDGES:
+            self.assertNotEqual(colors[left], colors[right], (left, right))
+        self.assertEqual(colors[1], "Red")
+        self.assertEqual(colors[2], "Green")
+
+    def assert_sudoku_solution(self, values):
+        grid = {
+            cell.indices: value
+            for cell, value in values.items()
+            if cell.name == "grid"
+        }
+        indices = range(1, 10)
+        expected_cells = {(row, column) for row in indices for column in indices}
+        digits = set(indices)
+        self.assertEqual(set(grid), expected_cells)
+        self.assertTrue(all(value in digits for value in grid.values()))
+
+        for index in indices:
+            self.assertEqual({grid[index, column] for column in indices}, digits)
+            self.assertEqual({grid[row, index] for row in indices}, digits)
+
+        for first_row in (1, 4, 7):
+            for first_column in (1, 4, 7):
+                block = {
+                    grid[row, column]
+                    for row in range(first_row, first_row + 3)
+                    for column in range(first_column, first_column + 3)
+                }
+                self.assertEqual(block, digits)
+
+        for row, givens in enumerate(self.SUDOKU_GIVENS, start=1):
+            for column, given in enumerate(givens, start=1):
+                if given:
+                    self.assertEqual(grid[row, column], given, (row, column))
+
     def test_statuts_attendus_et_modeles_decodes(self):
         for amo in ("pairwise", "sinz"):
             for name, expected in self.EXPECTED.items():
@@ -280,6 +343,10 @@ class TestsModelesDuSujet(unittest.TestCase):
                         self.assertTrue(verifier_valuation(formula, valuation))
                         values = decode(encoding, valuation)
                         self.assertEqual(len(values), len(encoding.cells))
+                        if name == "coloring.csp":
+                            self.assert_coloring_solution(values)
+                        elif name == "sudoku.csp":
+                            self.assert_sudoku_solution(values)
 
     def test_huit_reines_sans_conflit(self):
         model, encoding = compile_text((EXEMPLES / "queens.csp").read_text(encoding="utf-8"))

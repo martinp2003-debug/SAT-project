@@ -144,9 +144,43 @@ Sinz réduit le nombre de clauses dès que les groupes `atMostOne` sont grands
 (Sudoku : groupes de 9), au prix de nombreuses variables auxiliaires ; sur les
 petits groupes (3 couleurs, 3 trous), il en ajoute.
 
-La CLI résout la FNC avec le solveur optimisé de la partie I
-(`question6.solver.dpll_optimized`) et affiche une ligne `nom = valeur` par
-case, par exemple `grid[1][2] = 3` ou `color[1] = Red`.
+**Question 5.** La jonction avec la partie I est complète. `dimacs.py` numérote
+les variables propositionnelles et conserve leur nom dans des commentaires
+`c var`, puis `csp.py` orchestre toute la chaîne :
+
+```text
+modèle CSP → FNC/DIMACS → DPLL de la partie I → valeurs du modèle CSP
+```
+
+- sans `--solve`, la CLI affiche la FNC ou l'écrit avec `--dimacs` ;
+- avec `--solve`, elle appelle le solveur optimisé de la partie I
+  (`question6.solver.dpll_optimized`), vérifie que sa valuation satisfait la
+  FNC, puis décode uniquement les variables du modèle, jamais les auxiliaires ;
+- les statuts attendus sont vérifiés sur les quatre exemples : pigeons UNSAT,
+  reines SAT, coloration SAT et Sudoku SAT, avec les deux encodages
+  `pairwise` et `sinz` ;
+- pour les cas SAT, des oracles métier indépendants contrôlent les huit reines,
+  la coloration du graphe de Petersen et toutes les règles du Sudoku.
+
+La sortie contient `s SATISFIABLE` ou `s UNSATISFIABLE`, puis, dans le cas SAT,
+une ligne `nom = valeur` par case, par exemple `grid[1][2] = 3` ou
+`color[1] = Red`.
+
+**Question 6 — en cours.** Les questions 6.1 à 6.3 sont terminées. Le lecteur historique
+de la partie I expose maintenant une `DescriptionGrille` contenant `N`, `M`,
+l'ordre déclaré des zones et la matrice, tout en conservant l'ancienne fonction
+`lire_grille`. `meowdoku.py` transforme cette description en préambule CSP :
+
+```text
+GRID/ZONES → const N, M, K → enum Zone → const region[N][M]
+```
+
+Le convertisseur conserve l'ordre de `ZONES`, refuse les noms qui ne peuvent
+pas devenir des identifiants CSP et produit soit ces seules données, soit l'un
+des deux modèles complets de la question 6.2. Les solutions des deux modèles
+sont ramenées au même format puis contrôlées par le vérificateur indépendant
+de la partie I. Les questions 6.4 à 6.6 (contrainte redondante,
+généralisation et conclusion expérimentale) ne sont pas encore implémentées.
 
 - `syntax.py` contient la grammaire, les classes de l'AST, le parser,
   `pretty` (affichage de l'arbre) et `to_source` (réécriture de l'arbre dans le
@@ -162,6 +196,7 @@ case, par exemple `grid[1][2] = 3` ou `color[1] = Red`.
   sur l'AST), conservée avec ses tests ; la CLI utilise désormais la chaîne
   complète.
 - `dimacs.py` sérialise la FNC en conservant la correspondance des noms.
+- `execution.py` partage l'appel du solveur et le décodage entre les CLI.
 - `csp.py` orchestre la compilation, l'écriture DIMACS et la résolution.
 - `tests/test_syntax.py` teste les priorités, associativités, erreurs de syntaxe
   et exemples du fragment.
@@ -176,8 +211,25 @@ case, par exemple `grid[1][2] = 3` ou `color[1] = Red`.
   formules aléatoires), les clauses exactes des domaines et comparaisons, Sinz,
   et vérifie, pour chaque valeur possible des variables de petits modèles (un
   par opérateur de comparaison, plus des globales sous négation), que la FNC
-  est satisfiable exactement quand le modèle source est vrai.
+  est satisfiable exactement quand le modèle source est vrai. Sur les exemples
+  complets, il contrôle aussi directement les solutions décodées des reines,
+  de la coloration du graphe de Petersen et du Sudoku avec des oracles métier
+  indépendants du compilateur.
 - `tests/test_compiler.py` teste la chaîne de la question 1 et la CLI.
+- `meowdoku.py` convertit une grille `GRID/ZONES` en données CSP ou en l'un
+  des deux modèles complets des questions 6.1 et 6.2.
+- `solve_meowdoku.py` résout le modèle choisi et valide son placement avec
+  l'oracle métier de la partie I.
+- `tests/test_meowdoku.py` vérifie conversion, modèles, diagnostics, deux
+  grilles SAT et les deux CLI.
+- `question6.3/benchmark_q63.py` compare les deux modèles à compilateur, encodage et
+  heuristique DPLL constants. Il mesure séparément compilation, structure de
+  la FNC et recherche, vérifie chaque solution SAT avec l'oracle métier, puis
+  produit un CSV brut et un rapport Markdown.
+- `question6.3/resultats_q63.csv` et `question6.3/rapport_q63.md` contiennent
+  la campagne de référence sur les tailles 6 à 14 et son interprétation.
+- `tests/test_benchmark_q63.py` contrôle les profils de clauses, la synthèse et
+  une exécution réelle des deux modèles sur une grille 6 x 6.
 - `examples/` contient les petits exemples livrés avec le squelette.
 - `exemples/` contient les quatre modèles complets du sujet : pigeons, reines,
   coloration du graphe de Petersen et Sudoku.
@@ -199,6 +251,8 @@ uv --directory partie_2 run python csp.py exemples/queens.csp --ast
 uv --directory partie_2 run python csp.py exemples/queens.csp --expand
 uv --directory partie_2 run python csp.py exemples/sudoku.csp --solve
 uv --directory partie_2 run python csp.py exemples/sudoku.csp --solve --amo sinz
+uv --directory partie_2 run python meowdoku.py \
+  ../partie_1/grilles/grille.txt meowdoku-data.csp
 ```
 
 La première commande `csp.py` affiche une FNC DIMACS. `--ast` affiche l'arbre
@@ -206,6 +260,59 @@ de syntaxe du modèle, sans le compiler. `--expand` affiche les contraintes
 après déroulage et simplification, une par ligne. Avec `--solve`, le statut
 SAT puis une valeur pour chaque variable du modèle sont affichés. Le fichier
 `examples/syntax-error.csp` produit une erreur syntaxique expliquée, avec sa position.
+
+La dernière commande ne génère que les données propres à la grille. Le fichier
+`meowdoku-data.csp` peut ensuite être complété avec les règles de l'un des deux
+modèles Meowdoku. Avec `--model positions` ou `--model cells`, il ajoute les
+règles fixes correspondantes. Ces deux modèles sont ceux de la question 6.2
+et exigent `N = M = K`; la généralisation est volontairement reportée.
+L'ordre de la ligne `ZONES` devient l'ordre de l'énumération `Zone` ; les noms
+incompatibles avec le langage CSP sont rejetés sans renommage.
+
+Le modèle `positions` utilise `row[Zone]` et `col[Zone]`. Le modèle `cells`
+utilise un booléen `cat[i][j]` et interdit deux chats dans une même région
+en comparant chaque paire de cases une seule fois. Comme les contraintes de
+ligne placent exactement `N` chats dans `K = N` régions, « au plus un par
+région » implique alors « exactement un par région ».
+
+`solve_meowdoku.py` compile et résout le modèle choisi, normalise les deux
+formes de décodage en `région -> (ligne, colonne)`, puis appelle directement
+le vérificateur métier de la partie I. Ce dernier ne recompilant pas le CSP,
+il réduit le risque qu'une erreur de modélisation soit acceptée par le même
+raisonnement des deux côtés.
+
+```sh
+uv --directory partie_2 run python meowdoku.py \
+  ../partie_1/grilles/grille.txt positions.csp --model positions
+uv --directory partie_2 run python meowdoku.py \
+  ../partie_1/grilles/grille.txt cells.csp --model cells
+uv --directory partie_2 run python solve_meowdoku.py \
+  ../partie_1/grilles/grille.txt --model positions
+uv --directory partie_2 run python solve_meowdoku.py \
+  ../partie_1/grilles/grille.txt --model cells
+```
+
+La comparaison de la question 6.3 utilise par défaut les deux grilles SAT de
+chaque taille 6, 8, 10, 12 et 14, l'encodage `pairwise`, l'heuristique
+déterministe `h1`, trois mesures de compilation et trois résolutions. Chaque
+résolution est limitée à 30 secondes CPU ; les interruptions restent dans le
+CSV et ne sont pas silencieusement exclues du taux de résolution.
+
+```sh
+uv --directory partie_2 run python question6.3/benchmark_q63.py mesurer
+uv --directory partie_2 run python question6.3/benchmark_q63.py resumer \
+  question6.3/resultats_q63.csv
+```
+
+Le rapport doit être interprété à partir de la FNC effectivement produite :
+les deux sources décrivent les mêmes solutions, mais pas le même graphe de
+contraintes SAT. Le modèle `positions` introduit deux variables de domaine par
+région et ses contraintes de voisinage croissent jusqu'en ordre `N^4`. Le
+modèle `cells` utilise directement `N^2` booléens ; pour des régions de taille
+équilibrée, ses clauses croissent plutôt en ordre `N^3`. La taille de la FNC
+n'explique cependant pas seule le temps : la proportion de clauses binaires,
+les propagations unitaires, les décisions et les retours arrière déterminent
+aussi l'arbre exploré par DPLL.
 
 Une sortie peut aussi être écrite dans un fichier, avec ou sans résolution :
 

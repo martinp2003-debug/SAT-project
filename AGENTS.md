@@ -30,6 +30,9 @@ prises avec l'utilisateur priment sur les recommandations générales.
 - `partie_2/` : projet `proplog`, limité initialement au fragment propositionnel.
 - `partie_2/syntax.py` : grammaire Lark LALR, AST et pretty-printer actuels.
 - `partie_2/csp.py` : interface en ligne de commande actuelle.
+- `partie_2/execution.py` : frontière partagée vers le solveur de la partie I.
+- `partie_2/meowdoku.py` et `partie_2/solve_meowdoku.py` : génération,
+  résolution et vérification des deux modèles Meowdoku de la question 6.2.
 - `partie_2/tests/` : tests du fragment propositionnel.
 - `partie_2/exemples/` : quatre modèles complets servant de tests d'acceptation.
 - `partie_1/grilles/`, `partie_1/instances/` et
