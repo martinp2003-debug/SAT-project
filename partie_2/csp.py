@@ -12,19 +12,9 @@ from lark.exceptions import UnexpectedInput
 
 from diagnostics import CompilationError
 from dimacs import to_dimacs, write_dimacs
-from encoding import decode, encode
-from expansion import expand, show
-from semantics import analyse
+from execution import compile_program, prepare_program, solve_encoding
+from expansion import show
 from syntax import parse, pretty, syntax_error_message
-
-
-# Reuse the solver from Part I while keeping compilation independent from it.
-PART_1 = Path(__file__).resolve().parent.parent / "partie_1"
-if str(PART_1) not in sys.path:
-    sys.path.insert(0, str(PART_1))
-
-from question2.sat import verifier_valuation  # noqa: E402
-from question6.solver import dpll_optimized  # noqa: E402
 
 
 def show_value(value) -> str:
@@ -58,15 +48,16 @@ def main() -> int:
         if args.ast:
             print(pretty(program))
             return 0
-        model = analyse(program)
-        expansion = expand(model)
+        if args.expand:
+            _, expansion = prepare_program(program)
+        else:
+            _, expansion, encoding = compile_program(program, args.amo)
         for warning in expansion.warnings:
             print(f"{args.model}: avertissement : {warning}", file=sys.stderr)
         if args.expand:
             for constraint in expansion.constraints:
                 print(show(constraint))
             return 0
-        encoding = encode(model, expansion, args.amo)
     except UnexpectedInput as error:
         print(f"{args.model}: {syntax_error_message(error)}", file=sys.stderr)
         return 1
@@ -86,13 +77,10 @@ def main() -> int:
             print(to_dimacs(encoding), end="")
         return 0
 
-    formula = [frozenset(clause) for clause in encoding.clauses]
-    satisfiable, valuation = dpll_optimized(formula, encoding.variable_count)
+    satisfiable, values = solve_encoding(encoding)
     print("s SATISFIABLE" if satisfiable else "s UNSATISFIABLE")
     if satisfiable:
-        if valuation is None or not verifier_valuation(formula, valuation):
-            raise RuntimeError("La valuation calculée ne satisfait pas la FNC.")
-        for cell, value in decode(encoding, valuation).items():
+        for cell, value in values.items():
             print(f"{cell} = {show_value(value)}")
     return 0
 

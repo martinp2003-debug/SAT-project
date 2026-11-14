@@ -166,7 +166,7 @@ La sortie contient `s SATISFIABLE` ou `s UNSATISFIABLE`, puis, dans le cas SAT,
 une ligne `nom = valeur` par case, par exemple `grid[1][2] = 3` ou
 `color[1] = Red`.
 
-**Question 6 — en cours.** La question 6.1 est terminée. Le lecteur historique
+**Question 6 — en cours.** Les questions 6.1 et 6.2 sont terminées. Le lecteur historique
 de la partie I expose maintenant une `DescriptionGrille` contenant `N`, `M`,
 l'ordre déclaré des zones et la matrice, tout en conservant l'ancienne fonction
 `lire_grille`. `meowdoku.py` transforme cette description en préambule CSP :
@@ -176,12 +176,11 @@ GRID/ZONES → const N, M, K → enum Zone → const region[N][M]
 ```
 
 Le convertisseur conserve l'ordre de `ZONES`, refuse les noms qui ne peuvent
-pas devenir des identifiants CSP et ne produit que les données propres à la
-grille : les règles des deux modèles seront ajoutées ensuite. La grille 6 × 6 du
-sujet est testée exactement ; la sortie est aussi relue par le parseur et
-l'analyse sémantique. Les questions 6.2 à 6.6 (deux modèles complets,
-vérificateur indépendant, mesures, contrainte redondante, généralisation et
-conclusion expérimentale) ne sont pas encore implémentées.
+pas devenir des identifiants CSP et produit soit ces seules données, soit l'un
+des deux modèles complets de la question 6.2. Les solutions des deux modèles
+sont ramenées au même format puis contrôlées par le vérificateur indépendant
+de la partie I. Les questions 6.3 à 6.6 (mesures, contrainte redondante,
+généralisation et conclusion expérimentale) ne sont pas encore implémentées.
 
 - `syntax.py` contient la grammaire, les classes de l'AST, le parser,
   `pretty` (affichage de l'arbre) et `to_source` (réécriture de l'arbre dans le
@@ -197,6 +196,7 @@ conclusion expérimentale) ne sont pas encore implémentées.
   sur l'AST), conservée avec ses tests ; la CLI utilise désormais la chaîne
   complète.
 - `dimacs.py` sérialise la FNC en conservant la correspondance des noms.
+- `execution.py` partage l'appel du solveur et le décodage entre les CLI.
 - `csp.py` orchestre la compilation, l'écriture DIMACS et la résolution.
 - `tests/test_syntax.py` teste les priorités, associativités, erreurs de syntaxe
   et exemples du fragment.
@@ -216,10 +216,12 @@ conclusion expérimentale) ne sont pas encore implémentées.
   de la coloration du graphe de Petersen et du Sudoku avec des oracles métier
   indépendants du compilateur.
 - `tests/test_compiler.py` teste la chaîne de la question 1 et la CLI.
-- `meowdoku.py` convertit une grille `GRID/ZONES` de la partie I en
-  déclarations CSP (`N`, `M`, `K`, `Zone` et `region`) pour la question 6.1.
-- `tests/test_meowdoku.py` vérifie la conversion, les diagnostics, la CLI et
-  l'acceptation du fichier produit par le compilateur CSP.
+- `meowdoku.py` convertit une grille `GRID/ZONES` en données CSP ou en l'un
+  des deux modèles complets des questions 6.1 et 6.2.
+- `solve_meowdoku.py` résout le modèle choisi et valide son placement avec
+  l'oracle métier de la partie I.
+- `tests/test_meowdoku.py` vérifie conversion, modèles, diagnostics, deux
+  grilles SAT et les deux CLI.
 - `examples/` contient les petits exemples livrés avec le squelette.
 - `exemples/` contient les quatre modèles complets du sujet : pigeons, reines,
   coloration du graphe de Petersen et Sudoku.
@@ -253,8 +255,34 @@ SAT puis une valeur pour chaque variable du modèle sont affichés. Le fichier
 
 La dernière commande ne génère que les données propres à la grille. Le fichier
 `meowdoku-data.csp` peut ensuite être complété avec les règles de l'un des deux
-modèles Meowdoku. L'ordre de la ligne `ZONES` devient l'ordre de l'énumération
-`Zone` ; les noms incompatibles avec le langage CSP sont rejetés sans renommage.
+modèles Meowdoku. Avec `--model positions` ou `--model cells`, il ajoute les
+règles fixes correspondantes. Ces deux modèles sont ceux de la question 6.2
+et exigent `N = M = K`; la généralisation est volontairement reportée.
+L'ordre de la ligne `ZONES` devient l'ordre de l'énumération `Zone` ; les noms
+incompatibles avec le langage CSP sont rejetés sans renommage.
+
+Le modèle `positions` utilise `row[Zone]` et `col[Zone]`. Le modèle `cells`
+utilise un booléen `cat[i][j]` et interdit deux chats dans une même région
+en comparant chaque paire de cases une seule fois. Comme les contraintes de
+ligne placent exactement `N` chats dans `K = N` régions, « au plus un par
+région » implique alors « exactement un par région ».
+
+`solve_meowdoku.py` compile et résout le modèle choisi, normalise les deux
+formes de décodage en `région -> (ligne, colonne)`, puis appelle directement
+le vérificateur métier de la partie I. Ce dernier ne recompilant pas le CSP,
+il réduit le risque qu'une erreur de modélisation soit acceptée par le même
+raisonnement des deux côtés.
+
+```sh
+uv --directory partie_2 run python meowdoku.py \
+  ../partie_1/grilles/grille.txt positions.csp --model positions
+uv --directory partie_2 run python meowdoku.py \
+  ../partie_1/grilles/grille.txt cells.csp --model cells
+uv --directory partie_2 run python solve_meowdoku.py \
+  ../partie_1/grilles/grille.txt --model positions
+uv --directory partie_2 run python solve_meowdoku.py \
+  ../partie_1/grilles/grille.txt --model cells
+```
 
 Une sortie peut aussi être écrite dans un fichier, avec ou sans résolution :
 
