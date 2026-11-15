@@ -32,7 +32,10 @@ prises avec l'utilisateur priment sur les recommandations générales.
 - `partie_2/csp.py` : interface en ligne de commande actuelle.
 - `partie_2/execution.py` : frontière partagée vers le solveur de la partie I.
 - `partie_2/meowdoku.py` et `partie_2/solve_meowdoku.py` : génération,
-  résolution et vérification des deux modèles Meowdoku de la question 6.2.
+  résolution et vérification des modèles Meowdoku ; le second modèle est
+  généralisé à `N`, `M` et `K` libres.
+- `partie_2/question6.5/` : comparaison du second modèle avec une recherche
+  exhaustive indépendante sur de petites grilles.
 - `partie_2/tests/` : tests du fragment propositionnel.
 - `partie_2/exemples/` : quatre modèles complets servant de tests d'acceptation.
 - `partie_1/grilles/`, `partie_1/instances/` et
@@ -178,6 +181,10 @@ Tests d'acceptation finaux :
 Pour un résultat SAT, vérifier aussi la solution métier ; le seul statut SAT ne
 suffit pas. Pour les transformations délicates, ajouter de petits tests
 exhaustifs avant de lancer les gros exemples.
+
+Pour le Meowdoku généralisé, les régions imposent exactement un chat tandis que
+les lignes et colonnes en imposent au plus un. Les benchmarks 6.3 et 6.4
+conservent explicitement leur formulation historique sous `N = M = K`.
 
 Le dépôt utilise un workspace `uv`, un lockfile et un `.venv` uniques à la
 racine. Commandes de référence, à lancer depuis cette racine :

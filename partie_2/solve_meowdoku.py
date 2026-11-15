@@ -22,22 +22,11 @@ def main() -> int:
     parser.add_argument("grille", type=Path, help="fichier GRID/ZONES à résoudre")
     parser.add_argument("--model", required=True, choices=("positions", "cells"))
     parser.add_argument("--amo", choices=("pairwise", "sinz"), default="pairwise")
-    parser.add_argument(
-        "--redundant-regions",
-        action="store_true",
-        help="ajouter au modèle cells au moins un chat par région",
-    )
     args = parser.parse_args()
-    if args.redundant_regions and args.model != "cells":
-        parser.error("--redundant-regions exige --model cells")
 
     try:
         description = lire_description_grille(args.grille)
-        source = generer_modele(
-            description,
-            args.model,
-            redundant_regions=args.redundant_regions,
-        )
+        source = generer_modele(description, args.model)
         _, expanded, encoding = compile_program(parse(source), args.amo)
         for warning in expanded.warnings:
             print(f"{args.grille}: avertissement : {warning}", file=sys.stderr)

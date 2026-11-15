@@ -28,7 +28,11 @@ from benchmark_q63 import (  # noqa: E402
 )
 from diagnostics import CompilationError  # noqa: E402
 from encoding import decode  # noqa: E402
-from meowdoku import decoder_solution, generer_modele, lire_description_grille  # noqa: E402
+from meowdoku import (  # noqa: E402
+    decoder_solution,
+    generer_modele_q62,
+    lire_description_grille,
+)
 from question2.sat import verifier_valuation  # noqa: E402
 from question3.solution import verifier_solution  # noqa: E402
 from question5.instrumentation import (  # noqa: E402
@@ -62,7 +66,7 @@ def mesurer_variante(
     """Compile, résout et vérifie une variante du modèle ``cells``."""
     description = lire_description_grille(grille)
     variante = "avec" if redundant_regions else "sans"
-    source = generer_modele(
+    source = generer_modele_q62(
         description, "cells", redundant_regions=redundant_regions
     )
     compilation = compiler_modele(source, amo, repetitions_compilation)

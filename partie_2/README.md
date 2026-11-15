@@ -166,7 +166,7 @@ La sortie contient `s SATISFIABLE` ou `s UNSATISFIABLE`, puis, dans le cas SAT,
 une ligne `nom = valeur` par case, par exemple `grid[1][2] = 3` ou
 `color[1] = Red`.
 
-**Question 6 — en cours.** Les questions 6.1 à 6.4 sont terminées. Le lecteur historique
+**Question 6 — en cours.** Les questions 6.1 à 6.5 sont terminées. Le lecteur historique
 de la partie I expose maintenant une `DescriptionGrille` contenant `N`, `M`,
 l'ordre déclaré des zones et la matrice, tout en conservant l'ancienne fonction
 `lire_grille`. `meowdoku.py` transforme cette description en préambule CSP :
@@ -180,8 +180,9 @@ pas devenir des identifiants CSP et produit soit ces seules données, soit l'un
 des deux modèles complets de la question 6.2. Les solutions des deux modèles
 sont ramenées au même format puis contrôlées par le vérificateur indépendant
 de la partie I. La question 6.4 ajoute optionnellement une contrainte redondante
-par région et en mesure l'effet. Les questions 6.5 et 6.6 (généralisation et
-conclusion expérimentale) ne sont pas encore implémentées.
+par région et en mesure l'effet. La question 6.5 généralise le second modèle à
+`N`, `M` et `K` libres et compare DPLL à une recherche exhaustive indépendante.
+La conclusion expérimentale de la question 6.6 reste à rédiger.
 
 - `syntax.py` contient la grammaire, les classes de l'AST, le parser,
   `pretty` (affichage de l'arbre) et `to_source` (réécriture de l'arbre dans le
@@ -235,6 +236,10 @@ conclusion expérimentale) ne sont pas encore implémentées.
   clause `atLeastOne` par région, puis produit son CSV et son rapport Markdown.
 - `tests/test_benchmark_q64.py` contrôle les invariants structurels, les ratios,
   les timeouts et une exécution réelle des deux variantes.
+- `question6.5/generalisation_q65.py` compare le modèle `cells` généralisé à
+  l'énumération directe d'une case par région sur de petites grilles.
+- `question6.5/rapport_q65.md` consigne les quatre comparaisons SAT/UNSAT ;
+  `tests/test_generalisation_q65.py` les rejoue automatiquement.
 - `examples/` contient les petits exemples livrés avec le squelette.
 - `exemples/` contient les quatre modèles complets du sujet : pigeons, reines,
   coloration du graphe de Petersen et Sudoku.
@@ -269,22 +274,21 @@ SAT puis une valeur pour chaque variable du modèle sont affichés. Le fichier
 La dernière commande ne génère que les données propres à la grille. Le fichier
 `meowdoku-data.csp` peut ensuite être complété avec les règles de l'un des deux
 modèles Meowdoku. Avec `--model positions` ou `--model cells`, il ajoute les
-règles fixes correspondantes. Ces deux modèles sont ceux de la question 6.2
-et exigent `N = M = K`; la généralisation est volontairement reportée.
+règles fixes correspondantes. Le modèle `positions` de la question 6.2 exige
+encore `N = M = K`; le modèle `cells` accepte `N`, `M` et `K` indépendants.
 L'ordre de la ligne `ZONES` devient l'ordre de l'énumération `Zone` ; les noms
 incompatibles avec le langage CSP sont rejetés sans renommage.
 
 Le modèle `positions` utilise `row[Zone]` et `col[Zone]`. Le modèle `cells`
-utilise un booléen `cat[i][j]` et interdit deux chats dans une même région
-en comparant chaque paire de cases une seule fois. Comme les contraintes de
-ligne placent exactement `N` chats dans `K = N` régions, « au plus un par
-région » implique alors « exactement un par région ».
+utilise un booléen `cat[i][j]`, impose `atMostOne` par ligne et colonne, et
+exactement un chat par région. La partie « au moins un » est produite par le
+générateur, qui connaît les cases de chaque région ; la partie « au plus un »
+compare chaque paire de cases de la région une seule fois. Ainsi, `K` peut
+différer de `N` et `M`. Si `K > min(N, M)`, les contraintes rendent simplement
+le modèle UNSAT.
 
-L'option `--redundant-regions`, réservée au modèle `cells`, rend explicite la
-partie « au moins un ». Le générateur connaît la matrice des régions et émet
-donc un `atLeastOne(cat[i][j], ...)` par région. Cela ajoute `K` clauses sans
-variable SAT et évite d'étendre le langage avec une tranche filtrée pour ce
-seul besoin.
+Les benchmarks 6.3 et 6.4 appellent explicitement `generer_modele_q62` afin de
+conserver la formulation carrée et la reproductibilité de leurs résultats.
 
 `solve_meowdoku.py` compile et résout le modèle choisi, normalise les deux
 formes de décodage en `région -> (ligne, colonne)`, puis appelle directement
@@ -301,9 +305,13 @@ uv --directory partie_2 run python solve_meowdoku.py \
   ../partie_1/grilles/grille.txt --model positions
 uv --directory partie_2 run python solve_meowdoku.py \
   ../partie_1/grilles/grille.txt --model cells
-uv --directory partie_2 run python solve_meowdoku.py \
-  ../partie_1/grilles/grille.txt --model cells --redundant-regions
+uv --directory partie_2 run python question6.5/generalisation_q65.py
 ```
+
+La dernière commande compare DPLL à une recherche exhaustive qui énumère
+directement une case par région et appelle le vérificateur métier. Elle ne
+réutilise ni le compilateur CSP ni l'encodage SAT ; elle est volontairement
+réservée aux petites grilles.
 
 La comparaison de la question 6.3 utilise par défaut les deux grilles SAT de
 chaque taille 6, 8, 10, 12 et 14, l'encodage `pairwise`, l'heuristique

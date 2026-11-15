@@ -12,6 +12,7 @@ from meowdoku import (
     decoder_solution,
     generer_declarations,
     generer_modele,
+    generer_modele_q62,
     lire_description_grille,
 )
 from semantics import analyse
@@ -147,8 +148,8 @@ class TestsModelesMeowdoku(unittest.TestCase):
 
     def test_contrainte_redondante_enumere_les_cases_de_chaque_region(self) -> None:
         description = lire_description_grille(GRILLE_SUJET)
-        source_sans = generer_modele(description, "cells")
-        source_avec = generer_modele(
+        source_sans = generer_modele_q62(description, "cells")
+        source_avec = generer_modele_q62(
             description, "cells", redundant_regions=True
         )
 
@@ -165,7 +166,7 @@ class TestsModelesMeowdoku(unittest.TestCase):
         description = lire_description_grille(GRILLE_SUJET)
         encodages = []
         for redundant_regions in (False, True):
-            source = generer_modele(
+            source = generer_modele_q62(
                 description, "cells", redundant_regions=redundant_regions
             )
             _, _, encoding = compile_program(parse(source))
@@ -177,7 +178,9 @@ class TestsModelesMeowdoku(unittest.TestCase):
 
     def test_contrainte_redondante_est_resolue_et_verifiee(self) -> None:
         description = lire_description_grille(GRILLE_SUJET)
-        source = generer_modele(description, "cells", redundant_regions=True)
+        source = generer_modele_q62(
+            description, "cells", redundant_regions=True
+        )
         _, _, encoding = compile_program(parse(source))
         satisfiable, values = solve_encoding(encoding)
         self.assertTrue(satisfiable)
@@ -189,7 +192,9 @@ class TestsModelesMeowdoku(unittest.TestCase):
     def test_contrainte_redondante_est_reservee_au_modele_cases(self) -> None:
         description = lire_description_grille(GRILLE_SUJET)
         with self.assertRaisesRegex(ValueError, "exige le modèle cells"):
-            generer_modele(description, "positions", redundant_regions=True)
+            generer_modele_q62(
+                description, "positions", redundant_regions=True
+            )
 
     def test_les_deux_modeles_reconnaissent_une_grille_insatisfiable(self) -> None:
         # Sur 2 x 2, deux chats de lignes et colonnes distinctes sont forcément
@@ -216,7 +221,7 @@ class TestsModelesMeowdoku(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "plusieurs chats.*région A"):
             decoder_solution(description, "cells", values)
 
-    def test_generation_complete_exige_n_egal_m_egal_k(self) -> None:
+    def test_modele_cells_accepte_n_m_et_k_independants(self) -> None:
         cases = [
             "GRID 2 3\nZONES A B\nA A B\nA B B\n",
             "GRID 2 2\nZONES A B C\nA B\nC C\n",
@@ -226,8 +231,15 @@ class TestsModelesMeowdoku(unittest.TestCase):
                 path = Path(directory) / "grid.txt"
                 path.write_text(text, encoding="utf-8")
                 description = lire_description_grille(path)
+                source = generer_modele(description, "cells")
+                self.assertIn("constraint atMostOne(cat[i][*])", source)
+                self.assertEqual(
+                    source.count("constraint atLeastOne("), len(description.zones)
+                )
                 with self.assertRaisesRegex(ValueError, "N = M = K"):
-                    generer_modele(description, "cells")
+                    generer_modele_q62(description, "cells")
+                with self.assertRaisesRegex(ValueError, "N = M = K"):
+                    generer_modele(description, "positions")
 
     def test_generation_complete_refuse_un_nom_utilise_par_les_regles(self) -> None:
         with TemporaryDirectory() as directory:
@@ -260,42 +272,31 @@ class TestsModelesMeowdoku(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(declaration, output.read_text(encoding="utf-8"))
 
-    def test_cli_genere_et_valide_la_contrainte_redondante(self) -> None:
+    def test_cli_genere_le_modele_generalise(self) -> None:
         with TemporaryDirectory() as directory:
+            grid = Path(directory) / "rectangular.txt"
             output = Path(directory) / "model.csp"
+            grid.write_text(
+                "GRID 3 4\nZONES A B\nA A A A\nA B B B\nB B B B\n",
+                encoding="utf-8",
+            )
             result = subprocess.run(
                 [
                     sys.executable,
                     str(PARTIE_2 / "meowdoku.py"),
-                    str(GRILLE_SUJET),
+                    str(grid),
                     str(output),
                     "--model",
                     "cells",
-                    "--redundant-regions",
                 ],
                 capture_output=True,
                 text=True,
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("constraint atLeastOne", output.read_text(encoding="utf-8"))
-
-        invalid = subprocess.run(
-            [
-                sys.executable,
-                str(PARTIE_2 / "solve_meowdoku.py"),
-                str(GRILLE_SUJET),
-                "--model",
-                "positions",
-                "--redundant-regions",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertNotEqual(invalid.returncode, 0)
-        self.assertIn("exige --model cells", invalid.stderr)
-        self.assertNotIn("Traceback", invalid.stderr)
+            source = output.read_text(encoding="utf-8")
+            self.assertIn("constraint atMostOne(cat[i][*])", source)
+            self.assertEqual(source.count("constraint atLeastOne("), 2)
 
     def test_cli_resout_et_confirme_la_verification_independante(self) -> None:
         for representation in ("positions", "cells"):
@@ -317,10 +318,7 @@ class TestsModelesMeowdoku(unittest.TestCase):
                 self.assertIn("c solution vérifiée indépendamment", result.stdout)
 
     def test_cli_de_resolution_signale_les_grilles_invalides_sans_traceback(self) -> None:
-        cases = [
-            ("GRID 2 3\nZONES A B\nA A B\nA B B\n", "N = M = K"),
-            ("GRID 2 2\nZONES A B\nA B\n", "2 lignes de 2 cases"),
-        ]
+        cases = [("GRID 2 2\nZONES A B\nA B\n", "2 lignes de 2 cases")]
         for text, expected in cases:
             with self.subTest(expected=expected), TemporaryDirectory() as directory:
                 path = Path(directory) / "grid.txt"
