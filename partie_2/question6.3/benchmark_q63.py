@@ -26,7 +26,7 @@ for dossier in (PARTIE_2, PARTIE_1):
 from diagnostics import CompilationError
 from encoding import decode
 from execution import compile_program
-from meowdoku import decoder_solution, generer_modele, lire_description_grille
+from meowdoku import decoder_solution, generer_modele_q62, lire_description_grille
 from syntax import parse
 
 from question2.sat import verifier_valuation  # noqa: E402
@@ -94,7 +94,7 @@ def mesurer_modele(
 ) -> list[dict[str, object]]:
     """Compile, resout et verifie un modele d'une grille SAT."""
     description = lire_description_grille(grille)
-    source = generer_modele(description, modele)
+    source = generer_modele_q62(description, modele)
     compilation = compiler_modele(source, amo, repetitions_compilation)
     encoding = compilation.encoding
     formula = [frozenset(clause) for clause in encoding.clauses]

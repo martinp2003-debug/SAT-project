@@ -1,0 +1,5 @@
+GRID 3 4
+ZONES A B
+A A A A
+A A B B
+B B B B

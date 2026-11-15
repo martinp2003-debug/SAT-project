@@ -46,11 +46,33 @@ forall z1 in Zone, z2 in Zone, i in 1..N, j in 1..M,
 """
 
 
-REGLES_CASES = """// Une variable booléenne par case.
+REGLES_CASES_Q62 = """// Une variable booléenne par case.
 array cat[N][M] : bool;
 
 forall i in 1..N { constraint exactlyOne(cat[i][*]); }
 forall j in 1..M { constraint exactlyOne(cat[*][j]); }
+
+forall i in 1..(N - 1), j in 1..M, l in (j - 1)..(j + 1) {
+    constraint l >= 1 and l <= M and l != j
+        -> not (cat[i][j] and cat[i + 1][l]);
+}
+
+// Une seule orientation lexicographique par paire de cases d'une même région.
+forall i1 in 1..N, j1 in 1..M, i2 in 1..N, j2 in 1..M {
+    constraint region[i1][j1] = region[i2][j2]
+               and (i1 < i2 or (i1 = i2 and j1 < j2))
+        -> not (cat[i1][j1] and cat[i2][j2]);
+}
+"""
+
+
+REGLES_CASES = """// Une variable booléenne par case.
+array cat[N][M] : bool;
+
+// K est libre : les régions imposent l'existence des chats ; les lignes et
+// colonnes imposent seulement leur unicité.
+forall i in 1..N { constraint atMostOne(cat[i][*]); }
+forall j in 1..M { constraint atMostOne(cat[*][j]); }
 
 forall i in 1..(N - 1), j in 1..M, l in (j - 1)..(j + 1) {
     constraint l >= 1 and l <= M and l != j
@@ -107,23 +129,75 @@ def _verifier_hypothese_carree(description: DescriptionGrille) -> None:
         )
 
 
-def generer_modele(description: DescriptionGrille, representation: str) -> str:
-    """Produit un modèle Meowdoku complet pour la représentation demandée."""
-    try:
-        rules, generated_names = {
-            "positions": (REGLES_POSITIONS, NOMS_REGLES_POSITIONS),
-            "cells": (REGLES_CASES, NOMS_REGLES_CASES),
-        }[representation]
-    except KeyError:
-        raise ValueError(f"modèle Meowdoku inconnu : {representation}") from None
-    _verifier_hypothese_carree(description)
+def _generer_regions_non_vides(
+    description: DescriptionGrille, *, redondante: bool = False
+) -> str:
+    """Produit une grande disjonction des cases de chaque région."""
+    cases_par_zone = {zone: [] for zone in description.zones}
+    for i, ligne in enumerate(description.grille, start=1):
+        for j, zone in enumerate(ligne, start=1):
+            cases_par_zone[zone].append(f"cat[{i}][{j}]")
+
+    nature = "Contrainte redondante" if redondante else "Contrainte de région"
+    lignes = [f"// {nature} : au moins un chat dans chaque région."]
+    for zone in description.zones:
+        lignes.append(f"constraint atLeastOne({', '.join(cases_par_zone[zone])});")
+    return "\n".join(lignes) + "\n"
+
+
+def _verifier_conflits_regles(
+    description: DescriptionGrille, generated_names: frozenset[str]
+) -> None:
     conflicts = generated_names.intersection(description.zones)
     if conflicts:
         name = min(conflicts)
         raise ValueError(
             f"le nom de zone {name!r} entre en conflit avec les règles générées"
         )
-    return generer_declarations(description) + "\n" + rules
+
+
+def generer_modele_q62(
+    description: DescriptionGrille,
+    representation: str,
+    redundant_regions: bool = False,
+) -> str:
+    """Reproduit les modèles carrés utilisés dans les questions 6.2 à 6.4."""
+    try:
+        rules, generated_names = {
+            "positions": (REGLES_POSITIONS, NOMS_REGLES_POSITIONS),
+            "cells": (REGLES_CASES_Q62, NOMS_REGLES_CASES),
+        }[representation]
+    except KeyError:
+        raise ValueError(f"modèle Meowdoku inconnu : {representation}") from None
+    if redundant_regions and representation != "cells":
+        raise ValueError(
+            "la contrainte redondante par région exige le modèle cells"
+        )
+    _verifier_hypothese_carree(description)
+    _verifier_conflits_regles(description, generated_names)
+    source = generer_declarations(description) + "\n" + rules
+    if redundant_regions:
+        source += "\n" + _generer_regions_non_vides(
+            description, redondante=True
+        )
+    return source
+
+
+def generer_modele(description: DescriptionGrille, representation: str) -> str:
+    """Produit le modèle demandé, avec ``cells`` généralisé à N, M et K libres."""
+    if representation == "positions":
+        return generer_modele_q62(description, representation)
+    if representation != "cells":
+        raise ValueError(f"modèle Meowdoku inconnu : {representation}")
+
+    _verifier_conflits_regles(description, NOMS_REGLES_CASES)
+    return (
+        generer_declarations(description)
+        + "\n"
+        + REGLES_CASES
+        + "\n"
+        + _generer_regions_non_vides(description)
+    )
 
 
 def decoder_solution(description: DescriptionGrille, representation: str, values: dict):
@@ -175,7 +249,6 @@ def main() -> int:
 
     if args.grille.resolve() == args.sortie.resolve():
         parser.error("l'entrée et la sortie doivent être des fichiers distincts")
-
     try:
         description = lire_description_grille(args.grille)
         texte = (
