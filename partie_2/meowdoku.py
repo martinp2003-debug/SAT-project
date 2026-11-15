@@ -107,7 +107,26 @@ def _verifier_hypothese_carree(description: DescriptionGrille) -> None:
         )
 
 
-def generer_modele(description: DescriptionGrille, representation: str) -> str:
+def _generer_regions_non_vides(description: DescriptionGrille) -> str:
+    """Produit une grande disjonction des cases de chaque région."""
+    cases_par_zone = {zone: [] for zone in description.zones}
+    for i, ligne in enumerate(description.grille, start=1):
+        for j, zone in enumerate(ligne, start=1):
+            cases_par_zone[zone].append(f"cat[{i}][{j}]")
+
+    lignes = [
+        "// Contrainte redondante : au moins un chat dans chaque région."
+    ]
+    for zone in description.zones:
+        lignes.append(f"constraint atLeastOne({', '.join(cases_par_zone[zone])});")
+    return "\n".join(lignes) + "\n"
+
+
+def generer_modele(
+    description: DescriptionGrille,
+    representation: str,
+    redundant_regions: bool = False,
+) -> str:
     """Produit un modèle Meowdoku complet pour la représentation demandée."""
     try:
         rules, generated_names = {
@@ -116,6 +135,10 @@ def generer_modele(description: DescriptionGrille, representation: str) -> str:
         }[representation]
     except KeyError:
         raise ValueError(f"modèle Meowdoku inconnu : {representation}") from None
+    if redundant_regions and representation != "cells":
+        raise ValueError(
+            "la contrainte redondante par région exige le modèle cells"
+        )
     _verifier_hypothese_carree(description)
     conflicts = generated_names.intersection(description.zones)
     if conflicts:
@@ -123,7 +146,10 @@ def generer_modele(description: DescriptionGrille, representation: str) -> str:
         raise ValueError(
             f"le nom de zone {name!r} entre en conflit avec les règles générées"
         )
-    return generer_declarations(description) + "\n" + rules
+    source = generer_declarations(description) + "\n" + rules
+    if redundant_regions:
+        source += "\n" + _generer_regions_non_vides(description)
+    return source
 
 
 def decoder_solution(description: DescriptionGrille, representation: str, values: dict):
@@ -171,15 +197,26 @@ def main() -> int:
         "--model", choices=("positions", "cells"),
         help="ajouter les règles du modèle Meowdoku demandé",
     )
+    parser.add_argument(
+        "--redundant-regions",
+        action="store_true",
+        help="ajouter au modèle cells au moins un chat par région",
+    )
     args = parser.parse_args()
 
     if args.grille.resolve() == args.sortie.resolve():
         parser.error("l'entrée et la sortie doivent être des fichiers distincts")
+    if args.redundant_regions and args.model != "cells":
+        parser.error("--redundant-regions exige --model cells")
 
     try:
         description = lire_description_grille(args.grille)
         texte = (
-            generer_modele(description, args.model)
+            generer_modele(
+                description,
+                args.model,
+                redundant_regions=args.redundant_regions,
+            )
             if args.model is not None
             else generer_declarations(description)
         )

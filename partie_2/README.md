@@ -166,7 +166,7 @@ La sortie contient `s SATISFIABLE` ou `s UNSATISFIABLE`, puis, dans le cas SAT,
 une ligne `nom = valeur` par case, par exemple `grid[1][2] = 3` ou
 `color[1] = Red`.
 
-**Question 6 — en cours.** Les questions 6.1 à 6.3 sont terminées. Le lecteur historique
+**Question 6 — en cours.** Les questions 6.1 à 6.4 sont terminées. Le lecteur historique
 de la partie I expose maintenant une `DescriptionGrille` contenant `N`, `M`,
 l'ordre déclaré des zones et la matrice, tout en conservant l'ancienne fonction
 `lire_grille`. `meowdoku.py` transforme cette description en préambule CSP :
@@ -179,8 +179,9 @@ Le convertisseur conserve l'ordre de `ZONES`, refuse les noms qui ne peuvent
 pas devenir des identifiants CSP et produit soit ces seules données, soit l'un
 des deux modèles complets de la question 6.2. Les solutions des deux modèles
 sont ramenées au même format puis contrôlées par le vérificateur indépendant
-de la partie I. Les questions 6.4 à 6.6 (contrainte redondante,
-généralisation et conclusion expérimentale) ne sont pas encore implémentées.
+de la partie I. La question 6.4 ajoute optionnellement une contrainte redondante
+par région et en mesure l'effet. Les questions 6.5 et 6.6 (généralisation et
+conclusion expérimentale) ne sont pas encore implémentées.
 
 - `syntax.py` contient la grammaire, les classes de l'AST, le parser,
   `pretty` (affichage de l'arbre) et `to_source` (réécriture de l'arbre dans le
@@ -230,6 +231,10 @@ généralisation et conclusion expérimentale) ne sont pas encore implémentées
   la campagne de référence sur les tailles 6 à 14 et son interprétation.
 - `tests/test_benchmark_q63.py` contrôle les profils de clauses, la synthèse et
   une exécution réelle des deux modèles sur une grille 6 x 6.
+- `question6.4/benchmark_q64.py` compare le modèle `cells` avec et sans une
+  clause `atLeastOne` par région, puis produit son CSV et son rapport Markdown.
+- `tests/test_benchmark_q64.py` contrôle les invariants structurels, les ratios,
+  les timeouts et une exécution réelle des deux variantes.
 - `examples/` contient les petits exemples livrés avec le squelette.
 - `exemples/` contient les quatre modèles complets du sujet : pigeons, reines,
   coloration du graphe de Petersen et Sudoku.
@@ -275,6 +280,12 @@ en comparant chaque paire de cases une seule fois. Comme les contraintes de
 ligne placent exactement `N` chats dans `K = N` régions, « au plus un par
 région » implique alors « exactement un par région ».
 
+L'option `--redundant-regions`, réservée au modèle `cells`, rend explicite la
+partie « au moins un ». Le générateur connaît la matrice des régions et émet
+donc un `atLeastOne(cat[i][j], ...)` par région. Cela ajoute `K` clauses sans
+variable SAT et évite d'étendre le langage avec une tranche filtrée pour ce
+seul besoin.
+
 `solve_meowdoku.py` compile et résout le modèle choisi, normalise les deux
 formes de décodage en `région -> (ligne, colonne)`, puis appelle directement
 le vérificateur métier de la partie I. Ce dernier ne recompilant pas le CSP,
@@ -290,6 +301,8 @@ uv --directory partie_2 run python solve_meowdoku.py \
   ../partie_1/grilles/grille.txt --model positions
 uv --directory partie_2 run python solve_meowdoku.py \
   ../partie_1/grilles/grille.txt --model cells
+uv --directory partie_2 run python solve_meowdoku.py \
+  ../partie_1/grilles/grille.txt --model cells --redundant-regions
 ```
 
 La comparaison de la question 6.3 utilise par défaut les deux grilles SAT de
@@ -313,6 +326,21 @@ modèle `cells` utilise directement `N^2` booléens ; pour des régions de taill
 n'explique cependant pas seule le temps : la proportion de clauses binaires,
 les propagations unitaires, les décisions et les retours arrière déterminent
 aussi l'arbre exploré par DPLL.
+
+La question 6.4 reprend les mêmes grilles, l'encodage `pairwise`, l'heuristique
+`h1`, les répétitions et la limite CPU, mais compare uniquement le modèle
+`cells` avec et sans les clauses redondantes :
+
+```sh
+uv --directory partie_2 run python question6.4/benchmark_q64.py mesurer
+uv --directory partie_2 run python question6.4/benchmark_q64.py resumer \
+  question6.4/resultats_q64.csv
+```
+
+Le ratio du rapport est `sans / avec` : une valeur supérieure à 1 indique un
+gain de la variante redondante. Ce gain n'est pas garanti, car les nouvelles
+clauses peuvent renforcer la propagation mais augmentent aussi le travail de
+simplification du DPLL.
 
 Une sortie peut aussi être écrite dans un fichier, avec ou sans résolution :
 

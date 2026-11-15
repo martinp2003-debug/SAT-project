@@ -145,6 +145,52 @@ class TestsModelesMeowdoku(unittest.TestCase):
         self.assertIn("region[i1][j1] = region[i2][j2]", source)
         self.assertIn("i1 < i2 or (i1 = i2 and j1 < j2)", source)
 
+    def test_contrainte_redondante_enumere_les_cases_de_chaque_region(self) -> None:
+        description = lire_description_grille(GRILLE_SUJET)
+        source_sans = generer_modele(description, "cells")
+        source_avec = generer_modele(
+            description, "cells", redundant_regions=True
+        )
+
+        self.assertNotIn("Contrainte redondante", source_sans)
+        self.assertIn(
+            "constraint atLeastOne(cat[1][1], cat[2][1], cat[3][1], "
+            "cat[3][2], cat[4][1], cat[4][2], cat[4][3], cat[5][1], "
+            "cat[5][2], cat[5][3], cat[5][4], cat[6][2]);",
+            source_avec,
+        )
+        self.assertEqual(source_avec.count("constraint atLeastOne("), len(description.zones))
+
+    def test_contrainte_redondante_ajoute_k_clauses_sans_variable(self) -> None:
+        description = lire_description_grille(GRILLE_SUJET)
+        encodages = []
+        for redundant_regions in (False, True):
+            source = generer_modele(
+                description, "cells", redundant_regions=redundant_regions
+            )
+            _, _, encoding = compile_program(parse(source))
+            encodages.append(encoding)
+
+        sans, avec = encodages
+        self.assertEqual(avec.variable_count, sans.variable_count)
+        self.assertEqual(len(avec.clauses), len(sans.clauses) + len(description.zones))
+
+    def test_contrainte_redondante_est_resolue_et_verifiee(self) -> None:
+        description = lire_description_grille(GRILLE_SUJET)
+        source = generer_modele(description, "cells", redundant_regions=True)
+        _, _, encoding = compile_program(parse(source))
+        satisfiable, values = solve_encoding(encoding)
+        self.assertTrue(satisfiable)
+        solution = decoder_solution(description, "cells", values)
+        self.assertTrue(
+            verifier_solution([list(row) for row in description.grille], solution)
+        )
+
+    def test_contrainte_redondante_est_reservee_au_modele_cases(self) -> None:
+        description = lire_description_grille(GRILLE_SUJET)
+        with self.assertRaisesRegex(ValueError, "exige le modèle cells"):
+            generer_modele(description, "positions", redundant_regions=True)
+
     def test_les_deux_modeles_reconnaissent_une_grille_insatisfiable(self) -> None:
         # Sur 2 x 2, deux chats de lignes et colonnes distinctes sont forcément
         # voisins en diagonale.
@@ -213,6 +259,43 @@ class TestsModelesMeowdoku(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(declaration, output.read_text(encoding="utf-8"))
+
+    def test_cli_genere_et_valide_la_contrainte_redondante(self) -> None:
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "model.csp"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PARTIE_2 / "meowdoku.py"),
+                    str(GRILLE_SUJET),
+                    str(output),
+                    "--model",
+                    "cells",
+                    "--redundant-regions",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("constraint atLeastOne", output.read_text(encoding="utf-8"))
+
+        invalid = subprocess.run(
+            [
+                sys.executable,
+                str(PARTIE_2 / "solve_meowdoku.py"),
+                str(GRILLE_SUJET),
+                "--model",
+                "positions",
+                "--redundant-regions",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(invalid.returncode, 0)
+        self.assertIn("exige --model cells", invalid.stderr)
+        self.assertNotIn("Traceback", invalid.stderr)
 
     def test_cli_resout_et_confirme_la_verification_independante(self) -> None:
         for representation in ("positions", "cells"):
